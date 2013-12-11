@@ -180,6 +180,13 @@
                         [numT () (let [(tt (recur t)) (te (recur e))]
                                    (least-common-supertype tt te t-classes))] ; generalize if0 for #4
                         [else (type-error i "num")])]
+        [instanceofI (obj-expr class-name) (type-case Type (recur obj-expr) ; add instanceof for #2
+                                             [objT (obj-class-name)
+                                                   (if (or (is-subclass? class-name obj-class-name t-classes)
+                                                           (is-subclass? class-name obj-class-name t-classes))
+                                                       (numT)
+                                                       (type-error obj-expr (string-append "can never be instance of " (to-string class-name))))]
+                                             [else (type-error obj-expr "obj")])]
         [newI (class-name exprs)
               (local [(define arg-types (map recur exprs))
                       (define field-types
@@ -357,6 +364,16 @@
   (test/exn (typecheck-posn (if0I posn27 (numI 0) (numI 1)))
             "no type")
 
+  ;; add instanceof for #2
+  (test (typecheck-posn (instanceofI posn27 'posn3D))
+        (numT))
+  (test (typecheck-posn (instanceofI posn27 'posn))
+        (numT))
+  (test/exn (typecheck-posn (instanceofI (numI 0) 'posn))
+            "no type")
+  (test/exn (typecheck-posn (instanceofI square01 'posn))
+            "no type")
+  
   ;; forbid arg and this in main expression for #1
   (test/exn (typecheck-posn (thisI))
             "no type")

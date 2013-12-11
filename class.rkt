@@ -19,10 +19,11 @@
           (class-name : symbol)
           (method-name : symbol)
           (arg-expr : ExprC)]
-  ;; adding if0 for #3
-  [if0C (if-expr : ExprC)
+  [if0C (if-expr : ExprC); adding if0 for #3
         (then-expr : ExprC)
-        (else-expr : ExprC)])
+        (else-expr : ExprC)]
+  [instanceofC (obj-exp : ExprC) ; add instanceof for #2
+               (instanceof? : (symbol -> boolean))])
 
 (define-type ClassC
   [classC (name : symbol)
@@ -99,6 +100,12 @@
         [if0C (i t e) (type-case Value (recur i) ; added if0 for #3
                         [numV (n) (if (= 0 n) (recur t) (recur e))]
                         [else (error 'interp "not a number")])]
+        [instanceofC (obj-expr instanceof?) (type-case Value (recur obj-expr) ; add instanceof for #2
+                                              [objV (obj-class-name field-vals)
+                                                    (if (instanceof? obj-class-name)
+                                                        (numV 1)
+                                                        (numV 0))]
+                                              [else (error 'interp "not an object")])]
         [newC (class-name field-exprs)
               (local [(define c (find-class class-name classes))
                       (define vals (map recur field-exprs))]
@@ -179,6 +186,9 @@
   (define posn27 (newC 'posn (list (numC 2) (numC 7))))
   (define posn531 (newC 'posn3D (list (numC 5) (numC 3) (numC 1))))
 
+  (define (posn? name) ; added instanceof for #2
+    (equal? name 'posn))
+  
   (define (interp-posn a)
     (interp a (list posn-class posn3D-class) (numV -1) (numV -1))))
 
@@ -191,6 +201,13 @@
   (test (interp (if0C (numC 1) (numC 2) (numC 3)) ; added if0 for #3
                 empty (numV -1) (numV -1))
         (numV 3))
+  (test (interp-posn (instanceofC posn27 posn?)) ; added instanceof for #2
+        (numV 1))
+  (test (interp-posn (instanceofC posn531 posn?)) ; added instanceof for #2
+        (numV 0))
+  (test/exn (interp-posn (instanceofC (numC 1) posn?))
+        "not an object")
+
   (test (interp (numC 10) 
                 empty (numV -1) (numV -1))
         (numV 10))

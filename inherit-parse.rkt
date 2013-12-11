@@ -60,11 +60,16 @@
     (if0I (parse (second (s-exp->list s)))
           (parse (third (s-exp->list s)))
           (parse (fourth (s-exp->list s))))]
+   [(s-exp-match? '{instanceof ANY SYMBOL} s) ; add instanceof for #2
+    (instanceofI (parse (second (s-exp->list s)))
+                 (s-exp->symbol (third (s-exp->list s))))]
    [else (error 'parse "invalid input")]))
 
 (module+ test
   (test (parse '{if0 1 2 3}) ; added if0 for #3
         (if0I (numI 1) (numI 2) (numI 3)))
+  (test (parse '{instanceof 1 posn}) ; add instanceof for #2
+        (instanceofI (numI 1) 'posn))
   (test (parse '0)
         (numI 0))
   (test (parse `arg)
