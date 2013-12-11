@@ -159,8 +159,7 @@
         true))
 
 ;; ----------------------------------------
-
-(define typecheck-expr : (ExprI (listof ClassT) Type Type -> Type)
+(define typecheck-expr : (ExprI (listof ClassT) (-> Type) (-> Type) -> Type) ; forbid arg and this in main expression for #1
   (lambda (expr t-classes arg-type this-type)
     (local [(define (recur expr)
               (typecheck-expr expr t-classes arg-type this-type))
@@ -175,8 +174,8 @@
         [numI (n) (numT)]
         [plusI (l r) (typecheck-nums l r)]
         [multI (l r) (typecheck-nums l r)]
-        [argI () arg-type]
-        [thisI () this-type]
+        [argI () (arg-type)] ; forbid arg and this in main expression for #1
+        [thisI () (this-type)] ; forbid arg and this in main expression for #1
         [if0I (i t e) (type-case Type (recur i) ; added if0 for #3
                         [numT () (let [(tt (recur t)) (te (recur e))]
                                    (least-common-supertype tt te t-classes))] ; generalize if0 for #4
@@ -219,7 +218,7 @@
         [superI (method-name arg-expr)
                 (local [(define arg-type (recur arg-expr))
                         (define this-class
-                          (find-classT (objT-class-name this-type)
+                          (find-classT (objT-class-name (this-type)) ; forbid arg and this in main expression for #1
                                        t-classes))]
                   (typecheck-send (classT-super-name this-class)
                                   method-name
@@ -246,7 +245,7 @@
   (type-case MethodT method
     [methodT (name arg-type result-type body-expr)
              (if (is-subtype? (typecheck-expr body-expr t-classes
-                                              arg-type this-type)
+                                              (λ () arg-type) (λ () this-type)) ; forbid arg and this in main expression for #1
                               result-type
                               t-classes)
                  (values)
@@ -288,7 +287,10 @@
     (map (lambda (t-class)
            (typecheck-class t-class t-classes))
          t-classes)
-    (typecheck-expr a t-classes (numT) (objT 'bad))))
+    (typecheck-expr a ; forbid arg and this in main expression for #1
+                    t-classes
+                    (λ () (error 'typecheck "no type: 'arg' not allowed in main expression"))
+                    (λ () (error 'typecheck "no type: 'this' not allowed in main expression")))))
 
 ;; ----------------------------------------
 
@@ -353,6 +355,14 @@
   (test (typecheck-posn (if0I (numI 0) posn27 square01)) ; generalize if0 for #4
         (objT 'object))
   (test/exn (typecheck-posn (if0I posn27 (numI 0) (numI 1)))
+            "no type")
+
+  ;; forbid arg and this in main expression for #1
+  (test/exn (typecheck-posn (thisI))
+            "no type")
+  (test/exn (typecheck-posn (argI))
+            "no type")
+  (test/exn (typecheck-posn (superI 'mdist (numI 0)))
             "no type")
 
   (test/exn (typecheck-posn (sendI (numI 10) 'mdist (numI 0)))
