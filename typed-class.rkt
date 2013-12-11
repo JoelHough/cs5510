@@ -96,9 +96,31 @@
             [else false])]
     [else (equal? t1 t2)]))
 
+;; generalize if0 for #4
+(define (least-common-superclass name1 name2 t-classes)
+  (if (is-subclass? name1 name2 t-classes)
+      name2
+      (type-case ClassT (find-classT name2 t-classes)
+        [classT (name super-name fields methods)
+                (least-common-superclass name1 super-name t-classes)])))
+
+(define (least-common-supertype t1 t2 t-classes)
+  (type-case Type t1
+    [objT (name1)
+          (type-case Type t2
+            [objT (name2)
+                  (objT (least-common-superclass name1 name2 t-classes))]
+            [else (type-error t1 (string-append "no supertype in common with " (to-string t2)))])]
+    [else (if (equal? t1 t2)
+              t1
+              (type-error t1 (string-append "no supertype in common with " (to-string t2))))]))
+
 (module+ test
   (define a-t-class (classT 'a 'object empty empty))
   (define b-t-class (classT 'b 'a empty empty))
+  (define c-t-class (classT 'c 'a empty empty))
+  (define d-t-class (classT 'd 'object empty empty))
+  (define e-t-class (classT 'e 'd empty empty))
 
   (test (is-subclass? 'object 'object empty)
         true)
@@ -107,6 +129,24 @@
   (test (is-subclass? 'b 'a (list a-t-class b-t-class))
         true)
 
+  ;; generalize if0 for #4
+  (test (least-common-supertype (objT 'a) (objT 'b) (list a-t-class b-t-class))
+        (objT 'a))
+  (test (least-common-supertype (objT 'a) (objT 'object) (list a-t-class b-t-class))
+        (objT 'object))
+  (test (least-common-supertype (objT 'b) (objT 'c) (list a-t-class b-t-class c-t-class d-t-class e-t-class))
+        (objT 'a))
+  (test (least-common-supertype (objT 'b) (objT 'e) (list a-t-class b-t-class c-t-class d-t-class e-t-class))
+        (objT 'object))
+  (test (least-common-supertype (objT 'e) (objT 'e) (list a-t-class b-t-class c-t-class d-t-class e-t-class))
+        (objT 'e))
+  (test (least-common-supertype (numT) (numT) empty)
+        (numT))
+  (test/exn (least-common-supertype (numT) (objT 'a) (list a-t-class))
+            "no type")
+  (test/exn (least-common-supertype (objT 'a) (numT) (list a-t-class))
+            "no type")
+  
   (test (is-subtype? (numT) (numT) empty)
         true)
   (test (is-subtype? (numT) (objT 'object) empty)
@@ -139,10 +179,7 @@
         [thisI () this-type]
         [if0I (i t e) (type-case Type (recur i) ; added if0 for #3
                         [numT () (let [(tt (recur t)) (te (recur e))]
-                                   (cond
-                                     [(is-subtype? tt te t-classes) te]
-                                     [(is-subtype? te tt t-classes) tt]
-                                     [else (type-error tt (to-string te))]))]
+                                   (least-common-supertype tt te t-classes))] ; generalize if0 for #4
                         [else (type-error i "num")])]
         [newI (class-name exprs)
               (local [(define arg-types (map recur exprs))
@@ -313,8 +350,8 @@
         (objT 'posn))
   (test (typecheck-posn (if0I (numI 0) posn531 posn531))
         (objT 'posn3D))
-  (test/exn (typecheck-posn (if0I (numI 0) posn27 square01))
-            "no type")
+  (test (typecheck-posn (if0I (numI 0) posn27 square01)) ; generalize if0 for #4
+        (objT 'object))
   (test/exn (typecheck-posn (if0I posn27 (numI 0) (numI 1)))
             "no type")
 
