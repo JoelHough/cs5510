@@ -278,7 +278,7 @@
     (interp a classes (numV -1) (numV -1))))
 
 (module+ test
-  (test (interp-i (instanceofI (newI 'posn3d (list (numI 5) (numI 3) (numI 1))) 'posn)
+  (test (interp-i (instanceofI (newI 'posn3d (list (numI 5) (numI 3) (numI 1))) 'posn) ; add instanceof for #2
                   (list posn-i-class
                         posn3d-i-class))
         (numV 1))
