@@ -111,7 +111,7 @@
             [objT (name2)
                   (objT (least-common-superclass name1 name2 t-classes))]
             [else (type-error t1 (string-append "no supertype in common with " (to-string t2)))])]
-    [else (if (equal? t1 t2)
+    [else (if (is-subtype? t1 t2 t-classes)
               t1
               (type-error t1 (string-append "no supertype in common with " (to-string t2))))]))
 
