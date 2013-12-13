@@ -13,6 +13,7 @@
          (rhs : ExprI)]
   [argI]
   [thisI]
+  [nullI] ; add null for #7
   [newI (class-name : symbol)
         (args : (listof ExprI))]
   [getI (obj-expr : ExprI)
@@ -61,6 +62,7 @@
       [multI (l r) (multC (recur l) (recur r))]
       [argI () (argC)]
       [thisI () (thisC)]
+      [nullI () (nullC)] ; add null for #7
       [if0I (i t e) (if0C (recur i) (recur t) (recur e))] ; added if0 for #3
       [instanceofI (obj-expr class-name) (instanceofC (recur obj-expr) (λ (obj-class-name) (instanceof? obj-class-name class-name i-classes)))] ; add instanceof for #2
       [castI (class-name obj-expr) (castC (λ (obj-class-name) (instanceof? obj-class-name class-name i-classes)) (recur obj-expr))] ; add cast for #5
@@ -79,6 +81,8 @@
                       (recur arg-expr))])))
 
 (module+ test
+  (test (expr-i->c (nullI) 'object empty) ; add null for #7
+        (nullC))
   (test (expr-i->c (if0I (numI 0) (numI 2) (numI 3)) 'object empty) ; added if0 for #3
         (if0C (numC 0) (numC 2) (numC 3)))
   (test (expr-i->c (numI 10) 'object empty)

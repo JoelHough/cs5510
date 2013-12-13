@@ -21,7 +21,8 @@
 
 (define-type Type
   [numT]
-  [objT (class-name : symbol)])
+  [objT (class-name : symbol)]
+  [nullT]) ; add null for #7
 
 (module+ test
   (print-only-errors true))
@@ -94,6 +95,7 @@
             [objT (name2)
                   (is-subclass? name1 name2 t-classes)]
             [else false])]
+    [nullT () true]
     [else (equal? t1 t2)]))
 
 ;; generalize if0 for #4
@@ -112,7 +114,7 @@
                   (objT (least-common-superclass name1 name2 t-classes))]
             [else (type-error t1 (string-append "no supertype in common with " (to-string t2)))])]
     [else (if (is-subtype? t1 t2 t-classes)
-              t1
+              t2
               (type-error t1 (string-append "no supertype in common with " (to-string t2))))]))
 
 (module+ test
@@ -147,6 +149,16 @@
   (test/exn (least-common-supertype (objT 'a) (numT) (list a-t-class))
             "no type")
   
+  ;; add null for #7
+  (test (least-common-supertype (nullT) (objT 'a) (list a-t-class))
+        (objT 'a))
+  (test (is-subtype? (numT) (nullT) empty)
+        false)
+  (test (is-subtype? (nullT) (objT 'object) empty)
+        true)
+  (test (is-subtype? (objT 'object) (nullT) empty)
+        false)
+
   (test (is-subtype? (numT) (numT) empty)
         true)
   (test (is-subtype? (numT) (objT 'object) empty)
@@ -176,6 +188,7 @@
         [multI (l r) (typecheck-nums l r)]
         [argI () (arg-type)] ; forbid arg and this in main expression for #1
         [thisI () (this-type)] ; forbid arg and this in main expression for #1
+        [nullI () (nullT)] ; add null for #7
         [if0I (i t e) (type-case Type (recur i) ; added if0 for #3
                         [numT () (let [(tt (recur t)) (te (recur e))]
                                    (least-common-supertype tt te t-classes))] ; generalize if0 for #4
@@ -391,6 +404,17 @@
             "no type")
   (test/exn (typecheck-posn (sendI posn27 'mdist posn27))
             "no type")
+  
+  ;; add null for #7
+  (test (typecheck-posn (castI 'posn (nullI)))
+        (objT 'posn))
+  (test (typecheck-posn (sendI posn27 'addDist (nullI)))
+        (numT))
+  (test/exn (typecheck-posn (sendI (nullI) 'mdist (numI 0)))
+            "no type")
+  (test/exn (typecheck-posn (getI (nullI) 'x))
+            "no type")
+  
   (test/exn (typecheck (plusI (numI 1) (newI 'object empty))
                        empty)
             "no type")

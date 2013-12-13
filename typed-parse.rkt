@@ -82,9 +82,23 @@
                      (map parse-t-class classes))])
     (type-case Value v
       [numV (n) (number->s-exp n)]
-      [objV (class-name field-vals) `object])))
+      [objV (class-name field-vals) `object]
+      [nullV () `null]))) ; add null for #7
 
 (module+ test
+  (test (interp-t-prog ; add null for #7
+         (list
+          '{class empty extends object
+                  {}})
+         '{if0 1 {new empty} null})
+        `null)
+  (test (interp-t-prog
+         (list
+          '{class empty extends object
+                  {}})
+         '{if0 0 {new empty} null})
+        `object)
+  
   (test (interp-t-prog
          empty
          '{if0 0 1 2})

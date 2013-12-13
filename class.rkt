@@ -8,6 +8,7 @@
          (rhs : ExprC)]
   [argC]
   [thisC]
+  [nullC] ; add null for #7
   [newC (class-name : symbol)
         (args : (listof ExprC))]
   [getC (obj-expr : ExprC)
@@ -39,7 +40,8 @@
 (define-type Value
   [numV (n : number)]
   [objV (class-name : symbol)
-        (field-values : (listof Value))])
+        (field-values : (listof Value))]
+  [nullV]) ; add null for #7
 
 (module+ test
   (print-only-errors true))
@@ -99,6 +101,7 @@
         [multC (l r) (num* (recur l) (recur r))]
         [thisC () this-val]
         [argC () arg-val]
+        [nullC () (nullV)]
         [if0C (i t e) (type-case Value (recur i) ; added if0 for #3
                         [numV (n) (if (= 0 n) (recur t) (recur e))]
                         [else (error 'interp "not a number")])]
@@ -107,6 +110,7 @@
                                                     (if (instanceof? obj-class-name)
                                                         (numV 1)
                                                         (numV 0))]
+                                              [nullV () (numV 1)] ; add null for #7 (null is an instance of anything)
                                               [else (error 'interp "not an object")])]
         [castC (valid? obj-expr) (local [(define v (recur obj-expr))]
                                    (type-case Value (recur obj-expr) ; add cast for #5
@@ -114,6 +118,7 @@
                                            (if (valid? obj-class-name)
                                                v
                                                (error 'interp "not a valid cast"))]
+                                     [nullV () (nullV)] ; add null for #7 (null can be cast to anything)
                                      [else (error 'interp "not an object")]))]
         [newC (class-name field-exprs)
               (local [(define c (find-class class-name classes))
@@ -128,6 +133,7 @@
                         [classC (name field-names methods)
                                 (get-field field-name field-names 
                                            field-vals)])]
+                [nullV () (error 'interp "null reference")] ; add null for #7
                 [else (error 'interp "not an object")])]
         [sendC (obj-expr method-name arg-expr)
                (local [(define obj (recur obj-expr))
@@ -136,12 +142,16 @@
                    [objV (class-name field-vals)
                          (call-method class-name method-name classes
                                       obj arg-val)]
+                   [nullV () (error 'interp "null reference")] ; add null for #7
                    [else (error 'interp "not an object")]))]
         [ssendC (obj-expr class-name method-name arg-expr)
                 (local [(define obj (recur obj-expr))
                         (define arg-val (recur arg-expr))]
-                  (call-method class-name method-name classes
-                               obj arg-val))]))))
+                  (type-case Value obj ; add null for #7
+                    [objV (n f) (call-method class-name method-name classes
+                                             obj arg-val)]
+                    [nullV () (error 'interp "null reference")]
+                    [else (error 'interp "not an object")]))]))))
 
 (define (call-method class-name method-name classes
                      obj arg-val)
@@ -219,10 +229,24 @@
 
   (test (interp-posn (castC posn? posn27)) ; added cast for #2
         (objV 'posn (list (numV 2) (numV 7))))
-  (test/exn (interp-posn (castC posn? (newC 'posn3d (list (numC 2) (numC 2) (numC 2)))))
+  (test/exn (interp-posn (castC posn? (newC 'posn3D (list (numC 2) (numC 2) (numC 2)))))
             "not a valid cast")
   (test/exn (interp-posn (castC posn? (numC 1)))
             "not an object")
+  
+  ;; add null for #7
+  (test (interp-posn (castC posn? (nullC)))
+        (nullV))
+  (test (interp-posn (instanceofC (nullC) posn?))
+        (numV 1))
+  (test (interp-posn (if0C (numC 0) (nullC) posn27))
+        (nullV))
+  (test/exn (interp-posn (getC (nullC) 'x))
+            "null reference")
+  (test/exn (interp-posn (sendC (nullC) 'mdist (numC 0)))
+            "null reference")
+  (test/exn (interp-posn (ssendC (nullC) 'posn 'mdist (numC 0)))
+            "null reference")
   
   (test (interp (numC 10) 
                 empty (numV -1) (numV -1))

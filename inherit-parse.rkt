@@ -37,6 +37,7 @@
    [(s-exp-match? `NUMBER s) (numI (s-exp->number s))]
    [(s-exp-match? `arg s) (argI)]
    [(s-exp-match? `this s) (thisI)]
+   [(s-exp-match? `null s) (nullI)] ; add null for #7
    [(s-exp-match? '{+ ANY ANY} s)
     (plusI (parse (second (s-exp->list s)))
            (parse (third (s-exp->list s))))]
@@ -124,9 +125,11 @@
                      (map parse-class classes))])
     (type-case Value v
       [numV (n) (number->s-exp n)]
-      [objV (class-name field-vals) `object])))
+      [objV (class-name field-vals) `object]
+      [nullV () `null]))) ; add null for #7
 
 (module+ test
+  (test (interp-prog empty `null) `null)
   (test (interp-prog
          (list
           '{class empty extends object
@@ -163,5 +166,21 @@
                            {super mdist arg}}}})
         
         '{send {new posn3D 5 3 1} addDist {new posn 2 7}})
-       '18))
+       '18)
+  ;; add null for #7
+  (test/exn (interp-prog 
+        (list
+         '{class posn extends object
+                 {x y}
+                 {mdist {+ {get this x} {get this y}}}
+                 {addDist {+ {send arg mdist 0}
+                             {send this mdist 0}}}}
+         
+         '{class posn3D extends posn
+                 {z}
+                 {mdist {+ {get this z} 
+                           {super mdist arg}}}})
+        
+        '{send {new posn3D 5 3 1} addDist null})
+            "null reference"))
 
