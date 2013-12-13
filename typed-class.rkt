@@ -187,6 +187,7 @@
                                                        (numT)
                                                        (type-error obj-expr (string-append "can never be instance of " (to-string class-name))))]
                                              [else (type-error obj-expr "obj")])]
+        [castI (class-name obj-expr) (objT class-name)] ; add cast for #5
         [newI (class-name exprs)
               (local [(define arg-types (map recur exprs))
                       (define field-types
@@ -373,6 +374,10 @@
             "no type")
   (test/exn (typecheck-posn (instanceofI square01 'posn))
             "no type")
+  
+  ;; add cast for #5
+  (test (typecheck (castI 'object (numI 1)) empty)
+        (objT 'object))
   
   ;; forbid arg and this in main expression for #1
   (test/exn (typecheck-posn (thisI))

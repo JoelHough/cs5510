@@ -63,6 +63,9 @@
    [(s-exp-match? '{instanceof ANY SYMBOL} s) ; add instanceof for #2
     (instanceofI (parse (second (s-exp->list s)))
                  (s-exp->symbol (third (s-exp->list s))))]
+   [(s-exp-match? '{cast SYMBOL ANY} s) ; add cast for #5
+    (castI (s-exp->symbol (second (s-exp->list s)))
+           (parse (third (s-exp->list s))))]
    [else (error 'parse "invalid input")]))
 
 (module+ test
@@ -70,6 +73,8 @@
         (if0I (numI 1) (numI 2) (numI 3)))
   (test (parse '{instanceof 1 posn}) ; add instanceof for #2
         (instanceofI (numI 1) 'posn))
+  (test (parse '{cast object 1}) ; add cast for #5
+        (castI 'object (numI 1)))
   (test (parse '0)
         (numI 0))
   (test (parse `arg)
@@ -129,6 +134,21 @@
          '{new empty})
         `object)
 
+  (test (interp-prog ; add cast for #5
+         (list
+          '{class empty extends object
+                  {}})
+         '{cast object {new empty}})
+        `object)
+  (test/exn (interp-prog
+             (list
+              '{class empty extends object
+                 {}}
+              '{class empty2 extends empty
+                 {}})
+             '{cast empty2 {new empty}})
+            "not a valid cast")
+  
  (test (interp-prog 
         (list
          '{class posn extends object

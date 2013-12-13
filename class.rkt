@@ -23,7 +23,9 @@
         (then-expr : ExprC)
         (else-expr : ExprC)]
   [instanceofC (obj-exp : ExprC) ; add instanceof for #2
-               (instanceof? : (symbol -> boolean))])
+               (instanceof? : (symbol -> boolean))]
+  [castC (valid? : (symbol -> boolean)) ; add cast for #5
+         (obj-exp : ExprC)])
 
 (define-type ClassC
   [classC (name : symbol)
@@ -106,6 +108,13 @@
                                                         (numV 1)
                                                         (numV 0))]
                                               [else (error 'interp "not an object")])]
+        [castC (valid? obj-expr) (local [(define v (recur obj-expr))]
+                                   (type-case Value (recur obj-expr) ; add cast for #5
+                                     [objV (obj-class-name field-vals)
+                                           (if (valid? obj-class-name)
+                                               v
+                                               (error 'interp "not a valid cast"))]
+                                     [else (error 'interp "not an object")]))]
         [newC (class-name field-exprs)
               (local [(define c (find-class class-name classes))
                       (define vals (map recur field-exprs))]
@@ -208,6 +217,13 @@
   (test/exn (interp-posn (instanceofC (numC 1) posn?))
         "not an object")
 
+  (test (interp-posn (castC posn? posn27)) ; added cast for #2
+        (objV 'posn (list (numV 2) (numV 7))))
+  (test/exn (interp-posn (castC posn? (newC 'posn3d (list (numC 2) (numC 2) (numC 2)))))
+            "not a valid cast")
+  (test/exn (interp-posn (castC posn? (numC 1)))
+            "not an object")
+  
   (test (interp (numC 10) 
                 empty (numV -1) (numV -1))
         (numV 10))

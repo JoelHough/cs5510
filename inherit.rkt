@@ -26,7 +26,9 @@
         (t : ExprI)
         (e : ExprI)]
   [instanceofI (obj-expr : ExprI) ; add instanceof for #2
-               (class-name : symbol)])
+               (class-name : symbol)]
+  [castI (class-name : symbol) ; add cast for #5
+         (obj-expr : ExprI)])
 
 (define-type ClassI
   [classI (name : symbol)
@@ -61,6 +63,7 @@
       [thisI () (thisC)]
       [if0I (i t e) (if0C (recur i) (recur t) (recur e))] ; added if0 for #3
       [instanceofI (obj-expr class-name) (instanceofC (recur obj-expr) (λ (obj-class-name) (instanceof? obj-class-name class-name i-classes)))] ; add instanceof for #2
+      [castI (class-name obj-expr) (castC (λ (obj-class-name) (instanceof? obj-class-name class-name i-classes)) (recur obj-expr))] ; add cast for #5
       [newI (class-name field-exprs)
             (newC class-name (map recur field-exprs))]
       [getI (expr field-name)
@@ -282,6 +285,10 @@
                   (list posn-i-class
                         posn3d-i-class))
         (numV 1))
+  (test (interp-i (castI 'posn (newI 'posn3d (list (numI 5) (numI 3) (numI 1)))) ; add cast for #5
+                  (list posn-i-class
+                        posn3d-i-class))
+        (objV 'posn3d (list (numV 5) (numV 3) (numV 1))))
   (test (interp-i (instanceofI (newI 'posn (list (numI 2) (numI 7))) 'posn3d)
                   (list posn-i-class
                         posn3d-i-class))
